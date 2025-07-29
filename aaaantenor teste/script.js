@@ -5,10 +5,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let highestZIndex = 10;
 
     // --- Variáveis globais para o arrasto ---
-    let draggedElement = null; // Pode ser um ícone ou uma janela
-    let offsetX = 0; // Offset do cursor em relação ao elemento arrastado
-    let offsetY = 0;
-    let isMoving = false; // Flag para detectar se houve movimento (arrasto)
+    let draggedElement = null; // O elemento (ícone ou janela) que está sendo arrastado
+    let offsetX = 0;           // Deslocamento X do cursor/dedo em relação ao canto superior esquerdo do elemento
+    let offsetY = 0;           // Deslocamento Y do cursor/dedo em relação ao canto superior esquerdo do elemento
+    let isMoving = false;      // Flag para detectar se houve movimento (arrasto vs clique/tap)
+    let initialClickX, initialClickY; // Posição inicial do clique/tap para detectar movimento
 
     // --- Função auxiliar para obter coordenadas de evento (mouse ou toque) ---
     function getCoords(e) {
@@ -21,19 +22,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Definição dos textos para cada idioma ---
     const translations = {
         pt: {
-            // Títulos das janelas
             'sobre-title': 'Sobre Mim',
             'cursos-title': 'Cursos',
             'email-title': 'Email',
             'image-title': 'foto_praia.jpg',
-
-            // Textos dos ícones
             'icon-sobre': 'sobre mim',
             'icon-cursos': 'cursos e<br>formações',
             'icon-email': 'e-mail',
             'icon-image': 'minha<br>foto.jpg',
-
-            // Conteúdo das janelas
             'sobre-content-p1': 'Olá! meu nome é Pedro Antenor, um desenvolvedor web, com foco em UX apaixonado por tecnologia, música e interfaces. Adoro criar landing pages que combinem funcionalidades com recursos web com um toque de arte. Explore meu portfólio para conhecer meus projetos e um pouco mais sobre minha jornada! Você pode acessar o meu Github no link que está no rodapé da página',
             'cursos-content-h3-1': 'Experiência Profissional:',
             'cursos-content-li-1-1': 'Assistente Administrativo - Tudo é Acessibilidade, 2022 - 2023',
@@ -55,12 +51,10 @@ document.addEventListener('DOMContentLoaded', () => {
             'cursos-title': 'Courses',
             'email-title': 'Email',
             'image-title': 'beach_photo.jpg',
-
             'icon-sobre': 'about me',
             'icon-cursos': 'courses &<br>education',
             'icon-email': 'e-mail',
             'icon-image': 'my<br>photo.jpg',
-
             'sobre-content-p1': 'Hello! My name is Pedro Antenor, a web developer with a focus on UX, passionate about technology, music, and interfaces. I love creating landing pages that combine functionality with web features and a touch of art. Explore my portfolio to learn about my projects and a bit more about my journey! You can access my Github on the footer of this page',
             'cursos-content-h3-1': 'Professional Experience:',
             'cursos-content-li-1-1': 'Administrative Assistant - Tudo é Acessibilidade, 2022 - 2023',
@@ -82,12 +76,10 @@ document.addEventListener('DOMContentLoaded', () => {
             'cursos-title': 'Cursos',
             'email-title': 'Correo electrónico',
             'image-title': 'foto_playa.jpg',
-
             'icon-sobre': 'sobre mí',
             'icon-cursos': 'cursos y<br>formaciones',
             'icon-email': 'correo<br>electrónico',
             'icon-image': 'mi<br>foto.jpg',
-
             'sobre-content-p1': '¡Hola! Mi nombre es Pedro Antenor, un desarrollador web con enfoque en UX, apasionado por la tecnología, la música y las interfaces. Me encanta crear páginas de destino que combinen funcionalidad con características web y un toque de arte. ¡Explora mi portafolio para conocer mis proyectos y un poco más sobre mi trayectoria! Puedes acceder a mi Github en el enlace al final de la página.',
             'cursos-content-h3-1': 'Experiencia Profesional:',
             'cursos-content-li-1-1': 'Asistente Administrativo - Tudo é Acessibilidade, 2022 - 2023',
@@ -213,78 +205,30 @@ document.addEventListener('DOMContentLoaded', () => {
         console.warn("Elemento #lang-select não encontrado. A tradução não será aplicada automaticamente.");
     }
 
-    // --- Abertura e fechamento de janelas e Lógica de arrastar (unificada) ---
+    // --- Abertura e fechamento de janelas e Lógica de arrastar (unificada para mouse e touch) ---
 
-    // Listener para o evento "down" (mousedown ou touchstart) nos ícones
-    icons.forEach(icon => {
-        icon.addEventListener('mousedown', handleDownEvent);
-        icon.addEventListener('touchstart', handleDownEvent);
-
-        // Adiciona listener para teclas Enter/Espaço para abrir janela (apenas para desktop/teclado)
-        icon.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                // Simula um clique para ativar a lógica de abertura da janela
-                icon.dispatchEvent(new MouseEvent('mousedown', {
-                    bubbles: true,
-                    cancelable: true,
-                    view: window,
-                    button: 0
-                }));
-                // Pequeno atraso antes do mouseup para simular um clique mais natural
-                setTimeout(() => {
-                    icon.dispatchEvent(new MouseEvent('mouseup', {
-                        bubbles: true,
-                        cancelable: true,
-                        view: window,
-                        button: 0
-                    }));
-                }, 50);
-            }
-        });
-    });
-
-    // Listener para o evento "down" (mousedown ou touchstart) nas barras de título das janelas
-    windows.forEach(win => {
-        const titleBar = win.querySelector('.title-bar');
-        titleBar.addEventListener('mousedown', handleDownEvent);
-        titleBar.addEventListener('touchstart', handleDownEvent);
-
-        // Evento para trazer a janela para frente ao clicar em qualquer parte dela (mouse e touch)
-        win.addEventListener('mousedown', (e) => {
-            if (e.button !== 0) return; // Apenas botão esquerdo
-            highestZIndex++;
-            win.style.zIndex = highestZIndex;
-        });
-        win.addEventListener('touchstart', (e) => {
-             highestZIndex++;
-             win.style.zIndex = highestZIndex;
-        });
-    });
-
-    // --- Funções globais de manipuladores de evento ---
-    let initialClickX, initialClickY; // Usado para detectar se houve um 'movimento' significativo
-
+    // Handler para o evento "down" (mousedown ou touchstart) em elementos arrastáveis
     function handleDownEvent(e) {
         // Ignora botão direito do mouse
         if (e.type === 'mousedown' && e.button !== 0) return;
         
+        // Determina o elemento que foi clicado/tocado e o elemento arrastável principal (ícone ou janela)
         const targetElement = e.target.closest('.icon') || e.target.closest('.title-bar');
         if (!targetElement) return; // Não é um ícone ou barra de título
 
-        draggedElement = targetElement.closest('.icon') || targetElement.closest('.window'); // O elemento real a ser arrastado
+        draggedElement = targetElement.closest('.icon') || targetElement.closest('.window'); // Pega o elemento pai .icon ou .window
         
         const coords = getCoords(e);
         initialClickX = coords.clientX; // Guarda a posição inicial do clique/toque
         initialClickY = coords.clientY;
-        isMoving = false; // Reseta a flag de movimento
+        isMoving = false; // Reseta a flag de movimento para o novo 'down'
 
-        // Calcula o offset para arrastar
+        // Calcula o offset do cursor/dedo em relação à borda superior/esquerda do elemento arrastado
         const rect = draggedElement.getBoundingClientRect();
         offsetX = coords.clientX - rect.left;
         offsetY = coords.clientY - rect.top;
 
-        // Adiciona feedback visual e muda cursor
+        // Aplica feedback visual e muda cursor
         if (draggedElement.classList.contains('icon')) {
             draggedElement.style.cursor = 'grabbing';
             draggedElement.classList.add('is-dragging'); // Borda para ícones
@@ -293,21 +237,20 @@ document.addEventListener('DOMContentLoaded', () => {
             draggedElement.classList.add('is-dragging'); // Opacidade para janelas
         }
         
-        document.body.style.userSelect = 'none';
-        document.body.style.cursor = 'grabbing';
-        e.preventDefault(); // Impede o comportamento padrão do navegador
+        document.body.style.userSelect = 'none'; // Impede seleção de texto durante o arrasto
+        document.body.style.cursor = 'grabbing'; // Altera o cursor do body
+        
+        e.preventDefault(); // Impede o comportamento padrão do navegador (ex: arrastar imagem, rolagem em mobile)
     }
 
     // Handler global para movimento (mousemove ou touchmove)
-    document.addEventListener('mousemove', handleMoveEvent);
-    document.addEventListener('touchmove', handleMoveEvent);
-
     function handleMoveEvent(e) {
-        if (!draggedElement) return;
+        if (!draggedElement) return; // Se não há elemento sendo arrastado, sai
 
         const coords = getCoords(e);
         
         // Detecta se houve movimento significativo para considerar como arrasto
+        // O threshold de 5 pixels evita que pequenos tremeliques sejam considerados arrasto
         if (Math.abs(coords.clientX - initialClickX) > 5 || Math.abs(coords.clientY - initialClickY) > 5) {
             isMoving = true;
         }
@@ -315,12 +258,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const newX = coords.clientX - offsetX;
         const newY = coords.clientY - offsetY;
 
-        // Limites de arrasto (viewport)
+        // Limites de arrasto (viewport) para manter o elemento visível na tela
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight;
         const elemWidth = draggedElement.offsetWidth;
         const elemHeight = draggedElement.offsetHeight;
-        const footerHeight = 50; // Altura do rodapé para não cobrir
+        const footerHeight = 50; // Altura do rodapé para limitar o arrasto acima dele
 
         const boundedX = Math.max(0, Math.min(newX, viewportWidth - elemWidth));
         const boundedY = Math.max(0, Math.min(newY, viewportHeight - elemHeight - footerHeight));
@@ -332,9 +275,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Handler global para "up" (mouseup ou touchend)
-    document.addEventListener('mouseup', handleUpEvent);
-    document.addEventListener('touchend', handleUpEvent);
-
     function handleUpEvent(e) {
         if (!draggedElement) return; // Se não tem elemento arrastado, sai
 
@@ -347,12 +287,12 @@ document.addEventListener('DOMContentLoaded', () => {
             draggedElement.classList.remove('is-dragging');
         }
         
-        document.body.style.userSelect = '';
-        document.body.style.cursor = '';
+        document.body.style.userSelect = ''; // Permite seleção de texto novamente
+        document.body.style.cursor = ''; // Restaura o cursor normal do body
 
-        // Se não houve movimento significativo, trata como clique/tap
+        // Se não houve movimento significativo (apenas um clique/tap), trata como clique
         if (!isMoving) {
-            // Se for um ícone, abre a janela correspondente
+            // Se o elemento clicado/tocado é um ícone, abre a janela correspondente
             if (draggedElement.classList.contains('icon')) {
                 const targetId = draggedElement.dataset.window;
                 const targetWindow = document.getElementById(targetId);
@@ -367,33 +307,122 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Abre a janela clicada
                 targetWindow.style.display = 'block';
-                targetWindow.classList.add('is-visible');
+                targetWindow.classList.add('is-visible'); // Adiciona a classe para display:flex
                 highestZIndex++;
                 targetWindow.style.zIndex = highestZIndex;
                 centerWindow(targetWindow);
             }
-            // Se for uma janela (e não foi arrastada), apenas a traz para frente (já tratado no mousedown/touchstart da janela)
+            // Se for uma janela e não foi arrastada, apenas a traz para frente (já tratado no mousedown/touchstart da janela)
         }
         
-        // Zera o elemento arrastado
+        // Zera o elemento arrastado e a flag de movimento
         draggedElement = null;
-        isMoving = false; // Reseta a flag de movimento
+        isMoving = false; 
 
-        // Previne o evento default, útil para mobile para evitar cliques fantasma
+        // Previne o evento default do 'touchend' para evitar 'clicks fantasma' em mobile
         if (e.type === 'touchend') {
             e.preventDefault();
         }
     }
 
-
     // --- Lógica de fechamento de janelas ---
+    // Função para fechar uma janela específica
+    function closeWindow(windowElement) {
+        if (windowElement) {
+            windowElement.style.display = 'none';
+            windowElement.classList.remove('is-visible');
+        }
+    }
+
+    // Listener global para a tecla 'Esc'
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            // Encontra a janela visível mais no topo (com o maior z-index)
+            let topWindow = null;
+            let maxZIndex = -1;
+
+            windows.forEach(win => {
+                if (win.style.display === 'block') { // Se a janela estiver visível
+                    const currentZIndex = parseInt(win.style.zIndex || 0);
+                    if (currentZIndex > maxZIndex) {
+                        maxZIndex = currentZIndex;
+                        topWindow = win;
+                    }
+                }
+            });
+
+            if (topWindow) {
+                closeWindow(topWindow);
+            }
+        }
+    });
+
+    // Listener para o botão de fechar ('X')
     document.querySelectorAll('.close-btn').forEach(btn => {
+        // Evento de clique para desktop
         btn.addEventListener('click', (e) => {
             const closedWindow = e.target.closest('.window');
-            closedWindow.style.display = 'none';
-            closedWindow.classList.remove('is-visible');
+            closeWindow(closedWindow);
+        });
+
+        // Evento de toque para mobile
+        btn.addEventListener('touchend', (e) => {
+            e.preventDefault(); // Previne o "phantom click"
+            const closedWindow = e.target.closest('.window');
+            closeWindow(closedWindow);
         });
     });
+
+    // --- Atribuição dos handlers de evento aos elementos ---
+    // Atribui os handlers globais de "down" aos elementos que podem iniciar um arrasto (ícones e barras de título)
+    icons.forEach(icon => {
+        icon.addEventListener('mousedown', handleDownEvent);
+        icon.addEventListener('touchstart', handleDownEvent);
+
+        // Adiciona listener para teclas Enter/Espaço para abrir janela (apenas para desktop/teclado)
+        icon.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                // Simula um clique de mouse para ativar a lógica de abertura da janela
+                // Isso é essencial para que a lógica 'isMoving = false' seja respeitada
+                icon.dispatchEvent(new MouseEvent('mousedown', {
+                    bubbles: true, cancelable: true, view: window, button: 0
+                }));
+                // Pequeno atraso para simular um clique mais natural
+                setTimeout(() => {
+                    icon.dispatchEvent(new MouseEvent('mouseup', {
+                        bubbles: true, cancelable: true, view: window, button: 0
+                    }));
+                }, 50);
+            }
+        });
+    });
+
+    // Listeners para a barra de título da janela
+    windows.forEach(win => {
+        const titleBar = win.querySelector('.title-bar');
+        titleBar.addEventListener('mousedown', handleDownEvent);
+        titleBar.addEventListener('touchstart', handleDownEvent);
+
+        // Evento para trazer a janela para frente ao clicar em qualquer parte dela (mouse e touch)
+        // Isso é separado da lógica de arrasto, para focar a janela ao clicar em qualquer lugar dela
+        win.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
+            highestZIndex++;
+            win.style.zIndex = highestZIndex;
+        });
+        win.addEventListener('touchstart', (e) => {
+             highestZIndex++;
+             win.style.zIndex = highestZIndex;
+        });
+    });
+
+    // Atribui os handlers globais de "move" e "up" ao DOCUMENTO INTEIRO
+    // Isso é crucial para que o arrasto continue funcionando mesmo se o cursor/dedo sair do elemento arrastado
+    document.addEventListener('mousemove', handleMoveEvent);
+    document.addEventListener('touchmove', handleMoveEvent);
+    document.addEventListener('mouseup', handleUpEvent);
+    document.addEventListener('touchend', handleUpEvent);
 
     // --- Posicionamento aleatório dos ícones ao carregar a página ---
     const positionIconsRandomly = () => {
@@ -404,10 +433,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const iconWidth = icon.offsetWidth;
             const iconHeight = icon.offsetHeight;
 
-            const padding = 20;
+            const padding = 20; // Espaçamento das bordas do desktop
             const maxX = desktopWidth - iconWidth - padding;
             const maxY = desktopHeight - iconHeight - padding;
 
+            // Garante que o ícone não apareça fora da tela, mesmo em randomização
             const x = Math.max(padding, Math.min(Math.random() * maxX, maxX));
             const y = Math.max(padding, Math.min(Math.random() * maxY, maxY));
 
@@ -416,11 +446,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    // NOVO: Chama a função de posicionamento aleatório quando a página carrega
+    // Chama a função de posicionamento aleatório quando a página carrega
     window.addEventListener('load', positionIconsRandomly);
 
 
-    // Função para centralizar janela
+    // Função para centralizar janela na tela
     function centerWindow(win) {
         const windowWidth = win.offsetWidth;
         const windowHeight = win.offsetHeight;
@@ -430,13 +460,13 @@ document.addEventListener('DOMContentLoaded', () => {
         win.style.top = `${y}px`;
     }
 
-    // Centralizar janelas abertas ao redimensionar a tela
+    // Centralizar janelas abertas e reposicionar ícones ao redimensionar a tela
     window.addEventListener('resize', () => {
         windows.forEach(win => {
-            if (win.style.display === 'block') {
+            if (win.style.display === 'block') { // Apenas janelas visíveis
                 centerWindow(win);
             }
         });
-        positionIconsRandomly(); // Reposiciona os ícones ao redimensionar
+        positionIconsRandomly(); // Reposiciona os ícones ao redimensionar para evitar que fiquem fora da tela
     });
 });

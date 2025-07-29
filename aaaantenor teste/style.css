@@ -41,8 +41,9 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 5px;  
-    transition: border 0.1s ease-out; 
+    gap: 5px;
+    /* Transição para a borda e o outline */
+    transition: border 0.1s ease-out, outline 0.1s ease-out; /* Consolidado */
 }
 
 .icon img {
@@ -68,19 +69,18 @@ body {
     position: absolute;
     top: 100px;
     left: 100px;
-    display: none;
+    display: none; /* INICIA ESCONDIDA POR PADRÃO */
     animation: zoomOpen 0.3s ease-out forwards;
     z-index: 10;
     resize: both;
-    overflow: hidden;
+    overflow: hidden; /* A janela em si não terá scroll, o conteúdo interno sim */
     min-width: 300px;
     min-height: 200px;
-    flex-direction: column;
-    /* Transição para opacidade/filtro, se desejar um efeito suave ao arrastar */
-    transition: opacity 0.1s ease-out, filter 0.1s ease-out; /* Adicionado */
+    flex-direction: column; /* Necessário para o layout interno, mas só terá efeito com display: flex */
+    transition: opacity 0.1s ease-out, filter 0.1s ease-out;
 }
 
-/* Esta classe será adicionada pelo JavaScript quando a janela abrir */
+/* Classe para aplicar display: flex; quando a janela for visível via JS */
 .window.is-visible {
     display: flex;
 }
@@ -117,7 +117,7 @@ body {
 /* Estilos do conteúdo da janela */
 .window-content {
     padding: 10px;
-    font-size: 1.2rem;
+    font-size: 0.95rem;
     line-height: 1.4;
     overflow: auto; /* Conteúdo da janela pode ter scroll */
     flex-grow: 1; /* Permite que o conteúdo preencha o espaço restante em uma janela flex */
@@ -126,7 +126,7 @@ body {
 .window-content h3 {
     margin-top: 15px;
     margin-bottom: 5px;
-    font-size: 1.8rem;
+    font-size: 1.1rem;
     color: #000080;
 }
 
@@ -156,10 +156,26 @@ body {
     line-height: 1;
     border: 1px solid #000;
     box-shadow: 1px 1px 0 rgba(0,0,0,0.5);
+    /* Adicionado display flex para centralizar o 'X' e o texto oculto */
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .close-btn:hover {
     background: darkred;
+}
+
+/* Classe para esconder visualmente elementos, mas mantê-los para leitores de tela */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
 }
 
 /* Estilos do rodapé fixo */
@@ -190,27 +206,24 @@ body {
 
 /* Estilos específicos para a janela do visualizador de imagens */
 .image-viewer-window {
-    /* Remove a largura e altura fixa para que a janela se adapte ao conteúdo. */
     min-width: 300px;
     min-height: 200px;
-    max-width: 95vw; /* Garante que não seja maior que a largura da tela */
-    max-height: 90vh; /* Garante que não seja maior que a altura da tela */
-    
-    /* REMOVIDO: display: flex; daqui. Ele será adicionado via JS com .is-visible */
-    /* flex-direction: column; permanece aqui para quando is-visible adicionar display:flex */
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow: hidden;
+    flex-direction: column;
 }
 
 .image-content {
     display: flex;
     justify-content: center;
     align-items: center;
-    overflow: auto; /* Adiciona scrollbars APENAS se a imagem for maior que o container */
+    overflow: auto;
     flex-grow: 1;
     padding: 0;
 }
 
 .image-content img {
-    /* Removido max-width: 100% e max-height: 100% para permitir o tamanho real */
     display: block;
     object-fit: contain; /* Ajusta a imagem para caber sem distorcer, com rolagem se necessário */
     image-rendering: pixelated; /* Mantém o estilo retro */
@@ -228,7 +241,7 @@ body {
     padding: 5px 8px;
     font-family: "Roboto Mono", monospace;
     font-size: 0.9rem;
-    /* cursor: pointer; - Remova isso do parent div, o cursor é para o select */
+    cursor: pointer; /* O cursor de ponteiro deve estar aqui para o div pai */
 }
 
 .language-selector select {
@@ -241,17 +254,8 @@ body {
     -moz-appearance: none;
     appearance: none;
     padding-right: 20px;
-    cursor: pointer; 
-}
-
-.language-selector select:focus {
-    outline: 2px solid #000080; /* Uma borda sólida azul ao focar */
-    outline-offset: 2px;
-}
-
-/* Garante que o outline só apareça com o teclado */
-.language-selector select:focus:not(:focus-visible) {
-    outline: none;
+    cursor: pointer;
+    /* REMOVIDO: tabindex="0"; Isto é um atributo HTML, não uma propriedade CSS. */
 }
 
 /* Opcional: Adicionar uma seta customizada para o select */
@@ -269,11 +273,7 @@ body {
 /* Feedback visual para ÍCONES sendo arrastados */
 .icon.is-dragging {
     border: 2px solid #000080; /* Borda azul escura como "selecionado" */
-    /* Você pode ajustar a cor e espessura da borda */
     cursor: grabbing !important; /* Garante que o cursor continue 'grabbing' */
-    /* Remove opacidade/filtro se não quiser para o ícone */
-    /* opacity: 1; */
-    /* filter: none; */
 }
 
 /* Feedback visual para JANELAS sendo arrastadas */
@@ -310,45 +310,43 @@ select:focus:not(:focus-visible) {
 @media (max-width: 768px) {
     /* Estilos para todas as janelas (class .window) quando abertas no mobile */
     .window.is-visible {
-        width: 90vw;   /* Ocupa 90% da largura da viewport (tela) */
-        height: 80vh;  /* Ocupa 80% da altura da viewport */
-        top: 50%;      /* Centraliza verticalmente */
-        left: 50%;     /* Centraliza horizontalmente */
-        transform: translate(-50%, -50%); /* Ajuste para centralizar perfeitamente */
-        /* Garante que não sejam redimensionadas manualmente em excesso, se desejar */
-        min-width: unset; /* Remove o min-width padrão se ele for muito restritivo no mobile */
-        min-height: unset; /* Remove o min-height padrão */
-        resize: none; /* Desabilita o redimensionamento manual em mobile para evitar bugs visuais */
-        overflow: hidden; /* A janela não deve ter rolagem própria se o conteúdo tem */
+        width: 90vw;
+        height: 80vh;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        min-width: unset;
+        min-height: unset;
+        resize: none;
+        overflow: hidden;
     }
 
     /* Estilos específicos para o conteúdo da janela (se for o caso, como a imagem) */
     .window.is-visible .window-content {
-        overflow: auto; /* Garante que o CONTEÚDO da janela role se for maior */
+        overflow: auto;
     }
 
     /* Ajustes para a janela do visualizador de imagens no mobile */
     .image-viewer-window.is-visible {
-        width: 95vw;    /* A imagem pode precisar de um pouco mais de espaço */
-        height: 90vh;   /* E um pouco mais de altura */
-        /* O top/left/transform do .window.is-visible já a centraliza */
-        object-fit: contain; /* Garante que a imagem caiba e não seja cortada */
+        width: 95vw;
+        height: 90vh;
+        object-fit: contain; /* object-fit é para a imagem, não para a janela. Manter como no img. */
     }
 
     /* Ajuste para que a imagem dentro do visualizador ocupe o máximo de espaço no mobile */
     .image-viewer-window.is-visible .image-content img {
-        max-width: 100%; /* Permite que a imagem preencha o container */
-        max-height: 100%; /* Permite que a imagem preencha o container */
-        object-fit: contain; /* Garante que a imagem se ajuste sem cortar ou distorcer */
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
     }
 
     /* Opcional: Ajustar o tamanho dos ícones no desktop para mobile se necessário */
     .icon {
-        width: 150px; /* Ícones podem ser um pouco menores no mobile para não amontoar */
-        font-size: 1rem; /* Diminuir o tamanho da fonte do texto do ícone */
+        width: 150px;
+        font-size: 1rem;
     }
     .icon span {
-        font-size: 1rem; /* Ajuste para o texto do ícone */
+        font-size: 1rem;
         line-height: 1.1;
     }
 }
