@@ -117,7 +117,7 @@ body {
 /* Estilos do conteúdo da janela */
 .window-content {
     padding: 10px;
-    font-size: 0.95rem;
+    font-size: 1.2rem;
     line-height: 1.4;
     overflow: auto; /* Conteúdo da janela pode ter scroll */
     flex-grow: 1; /* Permite que o conteúdo preencha o espaço restante em uma janela flex */
@@ -126,7 +126,7 @@ body {
 .window-content h3 {
     margin-top: 15px;
     margin-bottom: 5px;
-    font-size: 1.1rem;
+    font-size: 1.8rem;
     color: #000080;
 }
 
@@ -242,7 +242,6 @@ body {
     appearance: none;
     padding-right: 20px;
     cursor: pointer; 
-    tabindex="0";
 }
 
 .language-selector select:focus {
@@ -305,4 +304,51 @@ select:focus {
 button:focus:not(:focus-visible),
 select:focus:not(:focus-visible) {
     outline: none;
+}
+
+/* Media Query para dispositivos com largura de tela menor ou igual a 768px (tablets e celulares) */
+@media (max-width: 768px) {
+    /* Estilos para todas as janelas (class .window) quando abertas no mobile */
+    .window.is-visible {
+        width: 90vw;   /* Ocupa 90% da largura da viewport (tela) */
+        height: 80vh;  /* Ocupa 80% da altura da viewport */
+        top: 50%;      /* Centraliza verticalmente */
+        left: 50%;     /* Centraliza horizontalmente */
+        transform: translate(-50%, -50%); /* Ajuste para centralizar perfeitamente */
+        /* Garante que não sejam redimensionadas manualmente em excesso, se desejar */
+        min-width: unset; /* Remove o min-width padrão se ele for muito restritivo no mobile */
+        min-height: unset; /* Remove o min-height padrão */
+        resize: none; /* Desabilita o redimensionamento manual em mobile para evitar bugs visuais */
+        overflow: hidden; /* A janela não deve ter rolagem própria se o conteúdo tem */
+    }
+
+    /* Estilos específicos para o conteúdo da janela (se for o caso, como a imagem) */
+    .window.is-visible .window-content {
+        overflow: auto; /* Garante que o CONTEÚDO da janela role se for maior */
+    }
+
+    /* Ajustes para a janela do visualizador de imagens no mobile */
+    .image-viewer-window.is-visible {
+        width: 95vw;    /* A imagem pode precisar de um pouco mais de espaço */
+        height: 90vh;   /* E um pouco mais de altura */
+        /* O top/left/transform do .window.is-visible já a centraliza */
+        object-fit: contain; /* Garante que a imagem caiba e não seja cortada */
+    }
+
+    /* Ajuste para que a imagem dentro do visualizador ocupe o máximo de espaço no mobile */
+    .image-viewer-window.is-visible .image-content img {
+        max-width: 100%; /* Permite que a imagem preencha o container */
+        max-height: 100%; /* Permite que a imagem preencha o container */
+        object-fit: contain; /* Garante que a imagem se ajuste sem cortar ou distorcer */
+    }
+
+    /* Opcional: Ajustar o tamanho dos ícones no desktop para mobile se necessário */
+    .icon {
+        width: 150px; /* Ícones podem ser um pouco menores no mobile para não amontoar */
+        font-size: 1rem; /* Diminuir o tamanho da fonte do texto do ícone */
+    }
+    .icon span {
+        font-size: 1rem; /* Ajuste para o texto do ícone */
+        line-height: 1.1;
+    }
 }
