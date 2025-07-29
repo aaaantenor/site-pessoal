@@ -4,6 +4,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const langSelect = document.getElementById('lang-select');
     let highestZIndex = 10;
 
+    // --- Variáveis globais para o arrasto ---
+    let draggedElement = null; // Pode ser um ícone ou uma janela
+    let offsetX = 0; // Offset do cursor em relação ao elemento arrastado
+    let offsetY = 0;
+    let isMoving = false; // Flag para detectar se houve movimento (arrasto)
+
+    // --- Função auxiliar para obter coordenadas de evento (mouse ou toque) ---
+    function getCoords(e) {
+        if (e.touches && e.touches.length > 0) {
+            return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
+        }
+        return { clientX: e.clientX, clientY: e.clientY };
+    }
+
     // --- Definição dos textos para cada idioma ---
     const translations = {
         pt: {
@@ -199,62 +213,25 @@ document.addEventListener('DOMContentLoaded', () => {
         console.warn("Elemento #lang-select não encontrado. A tradução não será aplicada automaticamente.");
     }
 
-    // Abertura e fechamento de janelas
+    // --- Abertura e fechamento de janelas e Lógica de arrastar (unificada) ---
+
+    // Listener para o evento "down" (mousedown ou touchstart) nos ícones
     icons.forEach(icon => {
-        icon.addEventListener('mousedown', (e) => {
-            if (e.button !== 0) return;
+        icon.addEventListener('mousedown', handleDownEvent);
+        icon.addEventListener('touchstart', handleDownEvent);
 
-            let moved = false;
-            const startX = e.clientX;
-            const startY = e.clientY;
-
-            const onMouseMove = (moveEvent) => {
-                if (Math.abs(moveEvent.clientX - startX) > 5 || Math.abs(moveEvent.clientY - startY) > 5) {
-                    moved = true;
-                }
-            };
-
-            const onMouseUp = (upEvent) => {
-                document.removeEventListener('mousemove', onMouseMove);
-                document.removeEventListener('mouseup', onMouseUp);
-
-                if (!moved) {
-                    const targetId = icon.dataset.window;
-                    const targetWindow = document.getElementById(targetId);
-
-                    windows.forEach(win => {
-                        if (win !== targetWindow) {
-                            win.style.display = 'none';
-                            win.classList.remove('is-visible');
-                        }
-                    });
-
-                    targetWindow.style.display = 'block';
-                    targetWindow.classList.add('is-visible'); // Adiciona a classe is-visible
-                    highestZIndex++;
-                    targetWindow.style.zIndex = highestZIndex;
-                    centerWindow(targetWindow);
-                } else {
-                    upEvent.preventDefault();
-                }
-            };
-
-            document.addEventListener('mousemove', onMouseMove);
-            document.addEventListener('mouseup', onMouseUp);
-
-            e.preventDefault();
-        });
-
-        // Adiciona listener para teclas Enter/Espaço para abrir janela
+        // Adiciona listener para teclas Enter/Espaço para abrir janela (apenas para desktop/teclado)
         icon.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
+                // Simula um clique para ativar a lógica de abertura da janela
                 icon.dispatchEvent(new MouseEvent('mousedown', {
                     bubbles: true,
                     cancelable: true,
                     view: window,
                     button: 0
                 }));
+                // Pequeno atraso antes do mouseup para simular um clique mais natural
                 setTimeout(() => {
                     icon.dispatchEvent(new MouseEvent('mouseup', {
                         bubbles: true,
@@ -267,18 +244,161 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Listener para o evento "down" (mousedown ou touchstart) nas barras de título das janelas
+    windows.forEach(win => {
+        const titleBar = win.querySelector('.title-bar');
+        titleBar.addEventListener('mousedown', handleDownEvent);
+        titleBar.addEventListener('touchstart', handleDownEvent);
+
+        // Evento para trazer a janela para frente ao clicar em qualquer parte dela (mouse e touch)
+        win.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return; // Apenas botão esquerdo
+            highestZIndex++;
+            win.style.zIndex = highestZIndex;
+        });
+        win.addEventListener('touchstart', (e) => {
+             highestZIndex++;
+             win.style.zIndex = highestZIndex;
+        });
+    });
+
+    // --- Funções globais de manipuladores de evento ---
+    let initialClickX, initialClickY; // Usado para detectar se houve um 'movimento' significativo
+
+    function handleDownEvent(e) {
+        // Ignora botão direito do mouse
+        if (e.type === 'mousedown' && e.button !== 0) return;
+        
+        const targetElement = e.target.closest('.icon') || e.target.closest('.title-bar');
+        if (!targetElement) return; // Não é um ícone ou barra de título
+
+        draggedElement = targetElement.closest('.icon') || targetElement.closest('.window'); // O elemento real a ser arrastado
+        
+        const coords = getCoords(e);
+        initialClickX = coords.clientX; // Guarda a posição inicial do clique/toque
+        initialClickY = coords.clientY;
+        isMoving = false; // Reseta a flag de movimento
+
+        // Calcula o offset para arrastar
+        const rect = draggedElement.getBoundingClientRect();
+        offsetX = coords.clientX - rect.left;
+        offsetY = coords.clientY - rect.top;
+
+        // Adiciona feedback visual e muda cursor
+        if (draggedElement.classList.contains('icon')) {
+            draggedElement.style.cursor = 'grabbing';
+            draggedElement.classList.add('is-dragging'); // Borda para ícones
+        } else if (draggedElement.classList.contains('window')) {
+            draggedElement.querySelector('.title-bar').style.cursor = 'grabbing';
+            draggedElement.classList.add('is-dragging'); // Opacidade para janelas
+        }
+        
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = 'grabbing';
+        e.preventDefault(); // Impede o comportamento padrão do navegador
+    }
+
+    // Handler global para movimento (mousemove ou touchmove)
+    document.addEventListener('mousemove', handleMoveEvent);
+    document.addEventListener('touchmove', handleMoveEvent);
+
+    function handleMoveEvent(e) {
+        if (!draggedElement) return;
+
+        const coords = getCoords(e);
+        
+        // Detecta se houve movimento significativo para considerar como arrasto
+        if (Math.abs(coords.clientX - initialClickX) > 5 || Math.abs(coords.clientY - initialClickY) > 5) {
+            isMoving = true;
+        }
+
+        const newX = coords.clientX - offsetX;
+        const newY = coords.clientY - offsetY;
+
+        // Limites de arrasto (viewport)
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        const elemWidth = draggedElement.offsetWidth;
+        const elemHeight = draggedElement.offsetHeight;
+        const footerHeight = 50; // Altura do rodapé para não cobrir
+
+        const boundedX = Math.max(0, Math.min(newX, viewportWidth - elemWidth));
+        const boundedY = Math.max(0, Math.min(newY, viewportHeight - elemHeight - footerHeight));
+
+        draggedElement.style.left = `${boundedX}px`;
+        draggedElement.style.top = `${boundedY}px`;
+        
+        e.preventDefault(); // Impede a rolagem da página em mobile durante o arrasto
+    }
+
+    // Handler global para "up" (mouseup ou touchend)
+    document.addEventListener('mouseup', handleUpEvent);
+    document.addEventListener('touchend', handleUpEvent);
+
+    function handleUpEvent(e) {
+        if (!draggedElement) return; // Se não tem elemento arrastado, sai
+
+        // Reseta o cursor e feedback visual
+        if (draggedElement.classList.contains('icon')) {
+            draggedElement.style.cursor = 'pointer';
+            draggedElement.classList.remove('is-dragging');
+        } else if (draggedElement.classList.contains('window')) {
+            draggedElement.querySelector('.title-bar').style.cursor = 'grab';
+            draggedElement.classList.remove('is-dragging');
+        }
+        
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+
+        // Se não houve movimento significativo, trata como clique/tap
+        if (!isMoving) {
+            // Se for um ícone, abre a janela correspondente
+            if (draggedElement.classList.contains('icon')) {
+                const targetId = draggedElement.dataset.window;
+                const targetWindow = document.getElementById(targetId);
+
+                // Fecha outras janelas
+                windows.forEach(win => {
+                    if (win !== targetWindow) {
+                        win.style.display = 'none';
+                        win.classList.remove('is-visible');
+                    }
+                });
+
+                // Abre a janela clicada
+                targetWindow.style.display = 'block';
+                targetWindow.classList.add('is-visible');
+                highestZIndex++;
+                targetWindow.style.zIndex = highestZIndex;
+                centerWindow(targetWindow);
+            }
+            // Se for uma janela (e não foi arrastada), apenas a traz para frente (já tratado no mousedown/touchstart da janela)
+        }
+        
+        // Zera o elemento arrastado
+        draggedElement = null;
+        isMoving = false; // Reseta a flag de movimento
+
+        // Previne o evento default, útil para mobile para evitar cliques fantasma
+        if (e.type === 'touchend') {
+            e.preventDefault();
+        }
+    }
+
+
+    // --- Lógica de fechamento de janelas ---
     document.querySelectorAll('.close-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const closedWindow = e.target.closest('.window');
             closedWindow.style.display = 'none';
-            closedWindow.classList.remove('is-visible'); // Remove a classe is-visible
+            closedWindow.classList.remove('is-visible');
         });
     });
 
-    // Posicionamento aleatório dos ícones ao carregar a página
+    // --- Posicionamento aleatório dos ícones ao carregar a página ---
     const positionIconsRandomly = () => {
         const desktopWidth = window.innerWidth;
-        const desktopHeight = window.innerHeight - 80;
+        const desktopHeight = window.innerHeight - 80; // Subtrai espaço para o rodapé
 
         icons.forEach(icon => {
             const iconWidth = icon.offsetWidth;
@@ -296,115 +416,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
+    // NOVO: Chama a função de posicionamento aleatório quando a página carrega
     window.addEventListener('load', positionIconsRandomly);
 
-    // Lógica de arrastar ícones
-    let draggedIcon = null;
-    let iconOffsetX = 0;
-    let iconOffsetY = 0;
-
-    icons.forEach(icon => {
-        icon.addEventListener('mousedown', (e) => {
-            if (e.button !== 0) return;
-            
-            draggedIcon = icon;
-            iconOffsetX = e.clientX - icon.getBoundingClientRect().left;
-            iconOffsetY = e.clientY - icon.getBoundingClientRect().top;
-
-            icon.style.cursor = 'grabbing';
-            document.body.style.userSelect = 'none';
-            document.body.cursor = 'grabbing'; // Corrigido de 'cursor' para 'style.cursor'
-            e.preventDefault();
-            draggedIcon.classList.add('is-dragging');
-        });
-    });
-
-    document.addEventListener('mousemove', (e) => {
-        if (draggedIcon) {
-            const newX = e.clientX - iconOffsetX;
-            const newY = e.clientY - iconOffsetY;
-
-            const desktopWidth = window.innerWidth;
-            const desktopHeight = window.innerHeight;
-            const iconWidth = draggedIcon.offsetWidth;
-            const iconHeight = draggedIcon.offsetHeight;
-            
-            const footerHeight = 50;
-
-            const boundedX = Math.max(0, Math.min(newX, desktopWidth - iconWidth));
-            const boundedY = Math.max(0, Math.min(newY, desktopHeight - iconHeight - footerHeight)); 
-
-            draggedIcon.style.left = `${boundedX}px`;
-            draggedIcon.style.top = `${boundedY}px`;
-        }
-    });
-
-    // Lógica de arrastar janelas e trazer para frente
-    let draggedWindow = null;
-    let windowOffsetX = 0, windowOffsetY = 0;
-
-    windows.forEach(win => {
-        const titleBar = win.querySelector('.title-bar');
-
-        titleBar.addEventListener('mousedown', (e) => {
-            if (e.button !== 0) return;
-            
-            draggedWindow = win;
-            const rect = win.getBoundingClientRect();
-            windowOffsetX = e.clientX - rect.left;
-            windowOffsetY = e.clientY - rect.top;
-
-            highestZIndex++;
-            win.style.zIndex = highestZIndex;
-
-            titleBar.style.cursor = 'grabbing';
-            document.body.style.userSelect = 'none';
-            document.body.cursor = 'grabbing'; // Corrigido de 'cursor' para 'style.cursor'
-            e.preventDefault();
-            draggedWindow.classList.add('is-dragging');
-        });
-
-        win.addEventListener('mousedown', () => {
-            highestZIndex++;
-            win.style.zIndex = highestZIndex;
-        });
-    });
-
-    document.addEventListener('mousemove', (e) => {
-        if (draggedWindow) {
-            const newX = e.clientX - windowOffsetX;
-            const newY = e.clientY - windowOffsetY;
-
-            const viewportWidth = window.innerWidth;
-            const viewportHeight = window.innerHeight;
-            const winWidth = draggedWindow.offsetWidth;
-            const winHeight = draggedWindow.offsetHeight;
-
-            const boundedX = Math.max(0, Math.min(newX, viewportWidth - winWidth));
-            const boundedY = Math.max(0, Math.min(newY, viewportHeight - winHeight - 50)); 
-
-            draggedWindow.style.left = `${boundedX}px`;
-            draggedWindow.style.top = `${boundedY}px`;
-        }
-    });
-    
-    // Evento global de mouseup para soltar ÍCONES e JANELAS
-    document.addEventListener('mouseup', () => {
-        if (draggedIcon) {
-            draggedIcon.style.cursor = 'pointer';
-            document.body.style.userSelect = '';
-            document.body.cursor = ''; // Corrigido de 'cursor' para 'style.cursor'
-            draggedIcon.classList.remove('is-dragging');
-            draggedIcon = null;
-        }
-        if (draggedWindow) {
-            draggedWindow.querySelector('.title-bar').style.cursor = 'grab';
-            document.body.style.userSelect = '';
-            document.body.cursor = ''; // Corrigido de 'cursor' para 'style.cursor'
-            draggedWindow.classList.remove('is-dragging');
-            draggedWindow = null;
-        }
-    });
 
     // Função para centralizar janela
     function centerWindow(win) {
@@ -423,6 +437,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 centerWindow(win);
             }
         });
-        positionIconsRandomly();
+        positionIconsRandomly(); // Reposiciona os ícones ao redimensionar
     });
 });
