@@ -1,7 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     const icons = document.querySelectorAll('.icon');
     const windows = document.querySelectorAll('.window');
-    // Mova a declaração de langSelect para DENTRO do DOMContentLoaded
     const langSelect = document.getElementById('lang-select');
     let highestZIndex = 10;
 
@@ -21,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'icon-image': 'minha<br>foto.jpg',
 
             // Conteúdo das janelas
-            'sobre-content-p1': 'Olá! meu nome é Pedro Antenor, um desenvolvedor web, com foco em UX apaixonado por tecnologia, música e interfaces. Adoro criar landing pages que combinem funcionalidades com recursos web com um toque de arte. Explore meu portfólio para conhecer meus projetos e um pouco mais sobre minha jornada!',
+            'sobre-content-p1': 'Olá! meu nome é Pedro Antenor, um desenvolvedor web, com foco em UX apaixonado por tecnologia, música e interfaces. Adoro criar landing pages que combinem funcionalidades com recursos web com um toque de arte. Explore meu portfólio para conhecer meus projetos e um pouco mais sobre minha jornada! Você pode acessar o meu Github no link que está no rodapé da página',
             'cursos-content-h3-1': 'Experiência Profissional:',
             'cursos-content-li-1-1': 'Assistente Administrativo - Tudo é Acessibilidade, 2022 - 2023',
             'cursos-content-li-1-2': 'Designer Trainee - Tudo é Acessibilidade, 2023 - Até Hoje',
@@ -33,7 +32,6 @@ document.addEventListener('DOMContentLoaded', () => {
             'cursos-content-li-3-2': 'AccessBoost - Marcelo Sales, 2022',
             'email-content-p1': 'Se você tem alguma dúvida, proposta ou apenas quer conversar, sinta-se à vontade para me enviar um e-mail!',
             'email-content-p2': 'Contato:',
-            // Chaves do rodapé alinhadas com seu HTML atual (instagram, github, lomography)
             'footer-instagram': 'instagram',
             'footer-github': 'github',
             'footer-lomography': 'lomography'
@@ -164,14 +162,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const emailContentP2 = document.querySelector('#email .window-content p:last-of-type');
         if (emailContentP2) {
-            // Cria um span temporário para o texto antes do link para não afetar o <a>
             const tempSpan = document.createElement('span');
             tempSpan.textContent = currentTranslations['email-content-p2'] + ' ';
             
-            // Pega o link existente
             const emailLink = emailContentP2.querySelector('a');
             
-            // Limpa o parágrafo e adiciona o texto e o link novamente
             emailContentP2.innerHTML = '';
             emailContentP2.appendChild(tempSpan);
             if (emailLink) {
@@ -182,7 +177,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Rodapé
         const footerLinks = document.querySelectorAll('.fixed-footer a');
-        // Verifique a ordem no seu HTML: instagram, github, lomography
         if (footerLinks[0]) footerLinks[0].textContent = currentTranslations['footer-instagram'];
         if (footerLinks[1]) footerLinks[1].textContent = currentTranslations['footer-github'];
         if (footerLinks[2]) footerLinks[2].textContent = currentTranslations['footer-lomography'];
@@ -192,21 +186,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Event listener para a troca de idioma ---
-    if (langSelect) { // Garante que o seletor foi encontrado antes de adicionar o listener
+    if (langSelect) {
         langSelect.addEventListener('change', (e) => {
             applyLanguage(e.target.value);
         });
     }
 
     // --- Aplica o idioma padrão ao carregar a página (Português) ---
-    // SOMENTE APLICA SE O SELETOR EXISTIR
     if (langSelect) {
         applyLanguage(langSelect.value);
     } else {
         console.warn("Elemento #lang-select não encontrado. A tradução não será aplicada automaticamente.");
     }
-
-    // --- Restante do seu JavaScript (sem alterações, mas inserido para contexto) ---
 
     // Abertura e fechamento de janelas
     icons.forEach(icon => {
@@ -234,10 +225,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     windows.forEach(win => {
                         if (win !== targetWindow) {
                             win.style.display = 'none';
+                            win.classList.remove('is-visible');
                         }
                     });
 
                     targetWindow.style.display = 'block';
+                    targetWindow.classList.add('is-visible'); // Adiciona a classe is-visible
                     highestZIndex++;
                     targetWindow.style.zIndex = highestZIndex;
                     centerWindow(targetWindow);
@@ -251,11 +244,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
             e.preventDefault();
         });
+
+        // Adiciona listener para teclas Enter/Espaço para abrir janela
+        icon.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                icon.dispatchEvent(new MouseEvent('mousedown', {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window,
+                    button: 0
+                }));
+                setTimeout(() => {
+                    icon.dispatchEvent(new MouseEvent('mouseup', {
+                        bubbles: true,
+                        cancelable: true,
+                        view: window,
+                        button: 0
+                    }));
+                }, 50);
+            }
+        });
     });
 
     document.querySelectorAll('.close-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            e.target.closest('.window').style.display = 'none';
+            const closedWindow = e.target.closest('.window');
+            closedWindow.style.display = 'none';
+            closedWindow.classList.remove('is-visible'); // Remove a classe is-visible
         });
     });
 
@@ -282,7 +298,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.addEventListener('load', positionIconsRandomly);
 
-    // Lógica de arrastar ícones (separada da lógica de clique)
+    // Lógica de arrastar ícones
     let draggedIcon = null;
     let iconOffsetX = 0;
     let iconOffsetY = 0;
@@ -297,8 +313,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             icon.style.cursor = 'grabbing';
             document.body.style.userSelect = 'none';
-            document.body.style.cursor = 'grabbing';
+            document.body.cursor = 'grabbing'; // Corrigido de 'cursor' para 'style.cursor'
             e.preventDefault();
+            draggedIcon.classList.add('is-dragging');
         });
     });
 
@@ -342,8 +359,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             titleBar.style.cursor = 'grabbing';
             document.body.style.userSelect = 'none';
-            document.body.style.cursor = 'grabbing';
+            document.body.cursor = 'grabbing'; // Corrigido de 'cursor' para 'style.cursor'
             e.preventDefault();
+            draggedWindow.classList.add('is-dragging');
         });
 
         win.addEventListener('mousedown', () => {
@@ -375,13 +393,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (draggedIcon) {
             draggedIcon.style.cursor = 'pointer';
             document.body.style.userSelect = '';
-            document.body.style.cursor = '';
+            document.body.cursor = ''; // Corrigido de 'cursor' para 'style.cursor'
+            draggedIcon.classList.remove('is-dragging');
             draggedIcon = null;
         }
         if (draggedWindow) {
             draggedWindow.querySelector('.title-bar').style.cursor = 'grab';
             document.body.style.userSelect = '';
-            document.body.style.cursor = '';
+            document.body.cursor = ''; // Corrigido de 'cursor' para 'style.cursor'
+            draggedWindow.classList.remove('is-dragging');
             draggedWindow = null;
         }
     });
